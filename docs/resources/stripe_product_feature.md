@@ -47,5 +47,9 @@ Attributes exported by this resource include:
 Import is supported using the following syntax:
 
 ```shell
-$ terraform import stripe_product_feature.product_feature <product_feature_id>
+$ terraform import stripe_product_feature.product_feature <product_id>/<product_feature_id>
 ```
+
+The product id is part of the import id because the Stripe API reads an
+attachment at `/v1/products/{product}/features/{id}` — it cannot be looked up by
+attachment id alone.

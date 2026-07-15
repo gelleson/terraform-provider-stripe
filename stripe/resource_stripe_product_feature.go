@@ -2,6 +2,8 @@ package stripe
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -15,7 +17,22 @@ func resourceStripeProductFeature() *schema.Resource {
 		CreateContext: resourceStripeProductFeatureCreate,
 		DeleteContext: resourceStripeProductFeatureDelete,
 		Importer: &schema.ResourceImporter{
-			StateContext: schema.ImportStatePassthroughContext,
+			// Read fetches /v1/products/{product}/features/{id}, so the parent
+			// product cannot be recovered from the attachment id alone. A
+			// passthrough importer leaves `product` unset and the read 404s, so
+			// import the composite "<product_id>/<product_feature_id>".
+			StateContext: func(_ context.Context, d *schema.ResourceData, _ interface{}) ([]*schema.ResourceData, error) {
+				product, featureID, found := strings.Cut(d.Id(), "/")
+				if !found || product == "" || featureID == "" {
+					return nil, fmt.Errorf(
+						"invalid import id %q: expected \"<product_id>/<product_feature_id>\"", d.Id())
+				}
+				if err := d.Set("product", product); err != nil {
+					return nil, err
+				}
+				d.SetId(featureID)
+				return []*schema.ResourceData{d}, nil
+			},
 		},
 		Schema: map[string]*schema.Schema{
 			"id": {
